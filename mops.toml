@@ -1,0 +1,7 @@
+[package]
+name = "decimal"
+version = "1.0.0"
+description = "A fixed point Decimal type and arithmetic for Motoko."
+repository = ""
+keywords = [ "decimal", "math", "maths", "fixed-point" ]
+license = "MIT"
