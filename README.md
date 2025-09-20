@@ -25,10 +25,10 @@ let taxRate = switch (Decimal.ofText("0.0825", 4, #halfUp)) {
 orderTotal := Decimal.add(orderTotal, unitPrice, null);
 orderTotal := Decimal.add(orderTotal, discount, null);
 
-let tax = Decimal.multiply(orderTotal, taxRate, 2, #halfUp);
+let tax = Decimal.multiply(orderTotal, taxRate, ?2, #halfUp);
 orderTotal := Decimal.add(orderTotal, tax, null);
 
 Debug.print("Total due: " # Decimal.toText(orderTotal)); // prints: Total due: 20.02
 ```
 
-Passing `null` for the optional `decimals` parameter in arithmetic helpers such as `Decimal.add` keeps whatever scale each operand already uses (effectively aligning to the maximum decimals of the inputs). Supplying a concrete value forces that many fractional digits, quantizing the operands to the requested precision before performing the operation.
+Passing `null` for the optional `decimals` parameter in arithmetic helpers lets the library pick a sensible scale automatically: addition/subtraction align to the widest operand, multiplication keeps the natural sum of operand scales, and division/power allocate a little extra precision (12 fractional digits beyond the widest operand) to preserve detail. Supplying `?n` forces exactly `n` fractional digits, quantizing intermediate values with the specified rounding mode before completing the operation.

@@ -4,6 +4,7 @@ import Text "mo:core/Text";
 import Iter "mo:core/Iter";
 import Array "mo:core/Array";
 import Float "mo:core/Float";
+import Order "mo:base/Order";
 
 // ------------------------------------------------------------
 // Decimal.mo — Fixed-point decimal arithmetic for Motoko
@@ -17,7 +18,7 @@ import Float "mo:core/Float";
 // - Result-based errors for operations that can fail
 // - Safer parsing/formatting (negatives supported, optional rounding)
 // - Utility functions: abs, neg, signum, isZero, cmp, min, max, clamp,
-//   quantize, normalize, floorTo / ceilTo / truncTo, pow (integer),
+//   quantize, normalize, floorTo / ceilTo / truncTo, power (integer),
 //   toInt, toNat, toFloat, fromFloat, format with separators
 // ------------------------------------------------------------
 
@@ -51,6 +52,9 @@ module {
     /// Tried to compute `0` to a negative power.
     #ZeroToNegativePower;
   };
+
+  /// Default number of fractional digits to keep when callers don't request a specific scale.
+  let defaultExtraPrecision : Nat = 12;
 
   /// Creates a zero `Decimal` with the provided scale.
   public func zero(decimals : Nat) : Decimal = { value = 0; decimals };
@@ -313,11 +317,6 @@ module {
     #ok({ value = rounded; decimals })
   };
 
-  /// Convenience constructor delegating to `fromFloat`.
-  public func ofFloat(f : Float, decimals : Nat, mode : DecimalRoundMode) : Result<Decimal, DecimalError> {
-    fromFloat(f, decimals, mode)
-  };
-
   // ------------ Arithmetic ------------
   /// Adds two decimals, aligning scales optionally to `decimals`.
   public func add(a : Decimal, b : Decimal, decimals : ?Nat) : Decimal {
@@ -335,16 +334,25 @@ module {
     { value = aa.value - bb.value; decimals = dec }
   };
 
-  /// Multiplies two decimals and rounds the result to `targetDecimals`.
-  public func multiply(a : Decimal, b : Decimal, targetDecimals : Nat, rnd : DecimalRoundMode) : Decimal {
-    let prod = a.value * b.value; // scale = a.decimals + b.decimals
-    quantize({ value = prod; decimals = a.decimals + b.decimals }, targetDecimals, rnd)
+  /// Multiplies two decimals. If `decimals` is `null`, the raw scale (`a.decimals + b.decimals`) is kept.
+  /// Otherwise the product is quantized to the requested number of fractional digits using `rnd`.
+  public func multiply(a : Decimal, b : Decimal, decimals : ?Nat, rnd : DecimalRoundMode) : Decimal {
+    let raw = { value = a.value * b.value; decimals = a.decimals + b.decimals };
+    switch (decimals) {
+      case (null) { raw };
+      case (?target) { quantize(raw, target, rnd) };
+    }
   };
 
-  /// Divides `a` by `b`, producing a decimal with `targetDecimals` or an error.
-  public func divide(a : Decimal, b : Decimal, targetDecimals : Nat, rnd : DecimalRoundMode)
+  /// Divides `a` by `b`, producing a decimal with the requested scale (or a default when `decimals` is `null`).
+  public func divide(a : Decimal, b : Decimal, decimals : ?Nat, rnd : DecimalRoundMode)
     : Result<Decimal, DecimalError> {
     if (b.value == 0) return #err(#DivideByZero);
+
+    let targetDecimals = switch (decimals) {
+      case (null) { Nat.max(a.decimals, b.decimals) + defaultExtraPrecision };
+      case (?value) { value };
+    };
 
     let resultIsNegative = (a.value < 0 and b.value > 0) or (a.value > 0 and b.value < 0);
     let direction : Int = if (resultIsNegative) -1 else 1;
@@ -384,15 +392,24 @@ module {
   };
 
   /// Raises a decimal to an integer power using fast exponentiation.
-  public func pow(x : Decimal, n : Int, targetDecimals : Nat, rnd : DecimalRoundMode)
+  /// When `decimals` is `null`, positive exponents return the natural scale and negative ones fall back to the
+  /// division default; otherwise the result is quantized to `decimals` using `rnd`.
+  public func power(x : Decimal, n : Int, decimals : ?Nat, rnd : DecimalRoundMode)
     : Result<Decimal, DecimalError> {
-    if (n == 0) return #ok(quantize(ofInt(1, 0), targetDecimals, #down));
+    func finalize(d : Decimal) : Result<Decimal, DecimalError> {
+      switch (decimals) {
+        case (null) { #ok(d) };
+        case (?target) { #ok(quantize(d, target, rnd)) };
+      }
+    };
+
+    if (n == 0) return finalize(ofInt(1, 0));
 
     if (n < 0) {
       if (x.value == 0) return #err(#ZeroToNegativePower);
-      switch (pow(x, -n, targetDecimals + 0, rnd)) {
+      switch (power(x, -n, null, rnd)) {
         case (#err e) { #err(e) };
-        case (#ok p) { divide(ofInt(1, 0), p, targetDecimals, rnd) }
+        case (#ok p) { divide(ofInt(1, 0), p, decimals, rnd) }
       }
     } else {
       // fast exponentiation on integer magnitude while tracking scale
@@ -414,7 +431,7 @@ module {
         }
       };
 
-      #ok(quantize({ value = resVal; decimals = resDec }, targetDecimals, rnd))
+      finalize({ value = resVal; decimals = resDec })
     }
   };
 
@@ -432,17 +449,33 @@ module {
   public func signum(d : Decimal) : Int = if (d.value < 0) -1 else if (d.value > 0) 1 else 0;
 
   /// Compares two decimals after aligning them to a common scale.
-  public func cmp(a : Decimal, b : Decimal) : Int {
+  public func compare(a : Decimal, b : Decimal) : Order.Order {
     let dec = Nat.max(a.decimals, b.decimals);
     let aa = quantize(a, dec, #down); // increasing scale (no rounding)
     let bb = quantize(b, dec, #down);
-    if (aa.value < bb.value) -1 else if (aa.value > bb.value) 1 else 0
+    if (aa.value < bb.value) #less else if (aa.value > bb.value) #greater else #equal
+  };
+
+  /// Tests whether two decimals have equal value after aligning them to a common scale.
+  public func equal(a : Decimal, b : Decimal) : Bool {
+    switch (compare(a, b)) {
+      case (#equal) true;
+      case (_) false;
+    };
   };
 
   /// Returns the minimum of two decimals.
-  public func min(a : Decimal, b : Decimal) : Decimal = if (cmp(a, b) <= 0) a else b;
+  public func min(a : Decimal, b : Decimal) : Decimal = switch (compare(a, b)) {
+    case (#less) a;
+    case (#equal) a;
+    case (#greater) b;
+  };
   /// Returns the maximum of two decimals.
-  public func max(a : Decimal, b : Decimal) : Decimal = if (cmp(a, b) >= 0) a else b;
+  public func max(a : Decimal, b : Decimal) : Decimal = switch (compare(a, b)) {
+    case (#less) b;
+    case (#equal) a;
+    case (#greater) a;
+  };
   /// Clamps `x` into the inclusive range `[lo, hi]`.
   public func clamp(x : Decimal, lo : Decimal, hi : Decimal) : Decimal = max(lo, min(x, hi));
 

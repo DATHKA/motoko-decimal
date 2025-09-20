@@ -106,7 +106,7 @@ test("Decimal conversions toInt, toNat, toFloat/fromFloat", func () {
     case (#err _) { assert false };
   };
 
-  switch (Decimal.ofFloat(99.99, 2, #halfUp)) {
+  switch (Decimal.fromFloat(99.99, 2, #halfUp)) {
     case (#ok value) { assertDecimalEqual(value, { value = 9999; decimals = 2 }) };
     case (#err _) { assert false };
   };
@@ -122,11 +122,17 @@ test("Decimal conversions toInt, toNat, toFloat/fromFloat", func () {
     case (#ok _) { assert false };
     case (#err e) { assert e == #InvalidFloat };
   };
+});
 
-  switch (Decimal.ofFloat(inf, 2, #down)) {
-    case (#ok _) { assert false };
-    case (#err e) { assert e == #InvalidFloat };
-  };
+test("Decimal equal helper", func () {
+  let a : Decimal.Decimal = { value = 1234; decimals = 2 };  // 12.34
+  let b : Decimal.Decimal = { value = 12340; decimals = 3 }; // 12.340
+  let c : Decimal.Decimal = { value = 1235; decimals = 2 };  // 12.35
+
+  assert Decimal.equal(a, b);
+  assert Decimal.equal(Decimal.neg(a), { value = -12340; decimals = 3 });
+  assert Decimal.equal(Decimal.zero(4), { value = 0; decimals = 0 });
+  assert Decimal.equal(a, c) == false;
 });
 
 test("Decimal arithmetic operations", func () {
@@ -149,42 +155,71 @@ test("Decimal arithmetic operations", func () {
   );
 
   assertDecimalEqual(
-    Decimal.multiply(a, b, 3, #halfUp),
+    Decimal.multiply(a, b, ?3, #halfUp),
     { value = 699678; decimals = 3 }
   );
 
-  switch (Decimal.divide(b, a, 2, #halfUp)) {
+  switch (Decimal.divide(b, a, ?2, #halfUp)) {
     case (#ok value) { assertDecimalEqual(value, { value = 459; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.divide(a, { value = 0; decimals = 0 }, 2, #down)) {
+  switch (Decimal.divide(a, { value = 0; decimals = 0 }, ?2, #down)) {
     case (#ok _) { assert false };
     case (#err e) { assert e == #DivideByZero };
   };
 });
 
-test("Decimal pow", func () {
+test("Decimal power", func () {
   let base : Decimal.Decimal = { value = 2; decimals = 0 };
 
-  switch (Decimal.pow(base, 3, 0, #down)) {
+  switch (Decimal.power(base, 3, ?0, #down)) {
     case (#ok value) { assertDecimalEqual(value, { value = 8; decimals = 0 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.pow(base, 0, 2, #down)) {
+  switch (Decimal.power(base, 0, ?2, #down)) {
     case (#ok value) { assertDecimalEqual(value, { value = 100; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.pow({ value = 3; decimals = 0 }, -2, 3, #halfUp)) {
+  switch (Decimal.power({ value = 3; decimals = 0 }, -2, ?3, #halfUp)) {
     case (#ok value) { assertDecimalEqual(value, { value = 111; decimals = 3 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.pow({ value = 0; decimals = 0 }, -1, 2, #down)) {
+  switch (Decimal.power({ value = 0; decimals = 0 }, -1, ?2, #down)) {
     case (#ok _) { assert false };
     case (#err e) { assert e == #ZeroToNegativePower };
+  };
+});
+
+test("Decimal inverse identities", func () {
+  let a : Decimal.Decimal = { value = 1234; decimals = 2 }; // 12.34
+  let b : Decimal.Decimal = { value = 567; decimals = 1 };  // 56.7
+
+  let sumDefault = Decimal.add(a, b, null);
+  let recoverDefault = Decimal.subtract(sumDefault, b, null);
+  assert Decimal.equal(recoverDefault, a);
+
+  let sumScaled = Decimal.add(a, b, ?3);
+  let recoverScaled = Decimal.subtract(sumScaled, Decimal.quantize(b, 3, #halfUp), ?3);
+  assert Decimal.equal(recoverScaled, Decimal.quantize(a, 3, #halfUp));
+
+  let c : Decimal.Decimal = { value = 1500; decimals = 2 }; // 15.00
+  let d : Decimal.Decimal = { value = 200; decimals = 2 };  // 2.00
+
+  let prod = Decimal.multiply(c, d, null, #halfUp);
+  switch (Decimal.divide(prod, d, ?2, #halfUp)) {
+    case (#ok recovered) { assert Decimal.equal(recovered, c) };
+    case (#err _) { assert false };
+  };
+
+  let prodScaled = Decimal.multiply(c, d, ?5, #halfUp);
+  let dScaled = Decimal.quantize(d, 5, #halfUp);
+  switch (Decimal.divide(prodScaled, dScaled, ?2, #halfUp)) {
+    case (#ok recoveredScaled) { assert Decimal.equal(recoveredScaled, c) };
+    case (#err _) { assert false };
   };
 });
 
@@ -200,9 +235,9 @@ test("Decimal utilities", func () {
   assert Decimal.signum(pos) == 1;
   assert Decimal.signum({ value = 0; decimals = 0 }) == 0;
 
-  assert Decimal.cmp({ value = 100; decimals = 2 }, { value = 1; decimals = 0 }) == 0;
-  assert Decimal.cmp({ value = -101; decimals = 1 }, { value = -10; decimals = 0 }) == -1;
-  assert Decimal.cmp({ value = 505; decimals = 2 }, { value = 50; decimals = 1 }) == 1;
+  assert Decimal.compare({ value = 100; decimals = 2 }, { value = 1; decimals = 0 }) == #equal;
+  assert Decimal.compare({ value = -101; decimals = 1 }, { value = -10; decimals = 0 }) == #less;
+  assert Decimal.compare({ value = 505; decimals = 2 }, { value = 50; decimals = 1 }) == #greater;
 
   assertDecimalEqual(Decimal.min(neg, pos), neg);
   assertDecimalEqual(Decimal.max(neg, pos), pos);
