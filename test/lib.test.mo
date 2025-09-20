@@ -9,8 +9,8 @@ func assertDecimalEqual(actual : Decimal.Decimal, expected : Decimal.Decimal) {
 
 test("Decimal constructors", func () {
   assertDecimalEqual(Decimal.zero(3), { value = 0; decimals = 3 });
-  assertDecimalEqual(Decimal.ofInt(-123, 1), { value = -123; decimals = 1 });
-  assertDecimalEqual(Decimal.ofNat(789, 4), { value = 789; decimals = 4 });
+  assertDecimalEqual(Decimal.fromInt(-123, 1), { value = -123; decimals = 1 });
+  assertDecimalEqual(Decimal.fromNat(789, 4), { value = 789; decimals = 4 });
 });
 
 test("Decimal toText and format", func () {
@@ -27,41 +27,57 @@ test("Decimal toText and format", func () {
   assert formattedDefault == "12,345.6789";
 });
 
-test("Decimal ofText parsing and rounding 1", func () {
-  switch (Decimal.ofText("123.45", 2, #down)) {
+test("Decimal fromText parsing and rounding", func () {
+  switch (Decimal.fromText("123.45", ?2, ?#down)) {
     case (#ok value) { assertDecimalEqual(value, { value = 12345; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.ofText("1.239", 2, #down)) {
+  switch (Decimal.fromText("1.239", ?2, ?#down)) {
     case (#ok value) { assertDecimalEqual(value, { value = 123; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.ofText("1.231", 2, #up)) {
+  switch (Decimal.fromText("1.231", ?2, ?#up)) {
     case (#ok value) { assertDecimalEqual(value, { value = 124; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.ofText("-2.301", 2, #up)) {
+  switch (Decimal.fromText("-2.301", ?2, ?#up)) {
     case (#ok value) { assertDecimalEqual(value, { value = -231; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.ofText("-2.345", 2, #halfUp)) {
+  switch (Decimal.fromText("-2.345", ?2, ?#halfUp)) {
     case (#ok value) { assertDecimalEqual(value, { value = -235; decimals = 2 }) };
     case (#err _) { assert false };
   };
-});
-test("Decimal ofText parsing and rounding 2", func () {
-  switch (Decimal.ofText("1.2345", 3, #halfUp)) {
+
+  switch (Decimal.fromText("1.2345", ?3, ?#halfUp)) {
     case (#ok value) { assertDecimalEqual(value, { value = 1235; decimals = 3 }) };
     case (#err _) { assert false };
   };
 
-  switch (Decimal.ofText("1.23.4", 2, #down)) {
+  switch (Decimal.fromText("1.23.4", ?2, ?#down)) {
     case (#ok _) { assert false };
     case (#err e) { assert e == #InvalidFormat };
+  };
+});
+
+test("Decimal fromText infers scale when no round mode", func () {
+  switch (Decimal.fromText("42", null, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 42; decimals = 0 }) };
+    case (#err _) { assert false };
+  };
+
+  switch (Decimal.fromText("19.8750", null, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 198750; decimals = 4 }) };
+    case (#err _) { assert false };
+  };
+
+  switch (Decimal.fromText("19.875", ?2, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 19875; decimals = 3 }) };
+    case (#err _) { assert false };
   };
 });
 
