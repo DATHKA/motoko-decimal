@@ -1,5 +1,5 @@
 [package]
-name = "motoko-decimal"
+name = "decimal"
 version = "1.0.0"
 description = "A fixed point Decimal type and arithmetic for Motoko."
 repository = "https://github.com/DATHKA/motoko-decimal"
