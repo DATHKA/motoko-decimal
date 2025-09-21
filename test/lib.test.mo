@@ -28,8 +28,38 @@ test("Decimal toText and format", func () {
 });
 
 test("Decimal fromText parsing and rounding", func () {
+  switch (Decimal.fromText("nan", null, null)) {
+    case (#ok value) { assert false };
+    case (#err _) { assert true };
+  };
+  switch (Decimal.fromText("1.00.22", ?2, null)) {
+    case (#ok value) { assert false };
+    case (#err _) { assert true };
+  };
+  switch (Decimal.fromText("1234500000", ?10, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 12345000000000000000; decimals = 10})};
+    case (#err _) { assert false };
+  };
+  switch (Decimal.fromText("123", ?10, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 1230000000000; decimals = 10})};
+    case (#err _) { assert false };
+  };
+  switch (Decimal.fromText("123.456", null, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 123456; decimals = 3 })};
+    case (#err _) { assert false };
+  };
+
+  switch (Decimal.fromText("123456.789", ?8, ?#halfUp)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 12345678900000; decimals = 8 })};
+    case (#err _) { assert false };
+  };
   switch (Decimal.fromText("123.45", ?2, ?#down)) {
     case (#ok value) { assertDecimalEqual(value, { value = 12345; decimals = 2 }) };
+    case (#err _) { assert false };
+  };
+
+  switch (Decimal.fromText("12.34567", ?2, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 1234; decimals = 2 }) };
     case (#err _) { assert false };
   };
 
@@ -74,9 +104,12 @@ test("Decimal fromText infers scale when no round mode", func () {
     case (#ok value) { assertDecimalEqual(value, { value = 198750; decimals = 4 }) };
     case (#err _) { assert false };
   };
-
-  switch (Decimal.fromText("19.875", ?2, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 19875; decimals = 3 }) };
+  switch (Decimal.fromText("12.34567", ?2, null)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 1234; decimals = 2})};
+    case (#err _) { assert false };
+  };
+  switch (Decimal.fromText("19.875", ?2, ?#halfUp)) {
+    case (#ok value) { assertDecimalEqual(value, { value = 1988; decimals = 2 }) };
     case (#err _) { assert false };
   };
 });

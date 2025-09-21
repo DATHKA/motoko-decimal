@@ -107,13 +107,18 @@ module Decimal {
     #ok({ value = rounded; decimals })
   };
 
-  /// Parses textual input into a `Decimal` with the specified scale and rounding mode.
-  /// Supports optional leading `-` and fractional part. If `roundMode` is `null`, the
-  /// number of fractional digits is inferred directly from the input text and no rounding
-  /// occurs.
+  /// Parses textual input into a `Decimal` with the specified scale and optional rounding mode.
+  /// Supports optional leading `-` and fractional part. When `decimals` is `null`, the scale is
+  /// inferred from the input text (and `roundMode` is ignored). When a concrete `decimals` is
+  /// provided, any excess fractional digits are rounded using `roundMode` (defaulting to `#down`
+  /// when omitted).
   /// ```motoko
-  /// let parsed = Decimal.fromText("12.345", ?2, ?#halfUp);
-  /// // parsed == #ok({ value = 1235; decimals = 2 })
+  /// let inferred = Decimal.fromText("12.345", null, null);
+  /// // inferred == #ok({ value = 12345; decimals = 3 })
+  /// let rounded = Decimal.fromText("12.345", ?2, ?#halfUp);
+  /// // rounded == #ok({ value = 1235; decimals = 2 })
+  /// let truncated = Decimal.fromText("12.345", ?2, null);
+  /// // truncated == #ok({ value = 1234; decimals = 2 })
   /// ```
   public func fromText(txt : Text, decimals : ?Nat, roundMode : ?DecimalRoundMode)
     : Result.Result<Decimal, DecimalError> {
@@ -128,40 +133,40 @@ module Decimal {
     let intPart = parts[0];
     let fracSrc = if (parts.size() == 2) parts[1] else "";
 
-    // intPart must be digits (allow empty -> treated as 0)
     let intDigits = if (intPart == "") "0" else intPart;
-
     let fracLen = fracSrc.size();
-    let targetDecimals : Nat = switch (roundMode) {
-      case (null) { fracLen };
-      case (?_) {
-        switch (decimals) {
-          case (null) { fracLen };
-          case (?d) { d };
+
+    switch (decimals) {
+      case (null) {
+        let magTxt = if (fracLen == 0) intDigits else intDigits # fracSrc;
+        switch (Nat.fromText(magTxt)) {
+          case (null) { #err(#InvalidFormat) };
+          case (?m) {
+            let signed = if (isNeg) Int.neg(Int.fromNat(m)) else Int.fromNat(m);
+            #ok({ value = signed; decimals = fracLen })
+          };
         }
       };
-    };
+      case (?targetDecimals) {
+        if (fracLen <= targetDecimals) {
+          let pad = Text.fromArray(Array.repeat('0', Nat.sub(targetDecimals, fracLen)));
+          let magTxt = intDigits # fracSrc # pad;
+          switch (Nat.fromText(magTxt)) {
+            case (null) { #err(#InvalidFormat) };
+            case (?m) {
+              let signed = if (isNeg) Int.neg(Int.fromNat(m)) else Int.fromNat(m);
+              #ok({ value = signed; decimals = targetDecimals })
+            };
+          }
+        } else {
+          let rm = switch (roundMode) {
+            case (null) { #down };
+            case (?mode) { mode };
+          };
 
-    // Decide on fractional part to use, possibly with rounding
-    if (fracLen <= targetDecimals) {
-      let pad = Text.fromArray(Array.repeat('0', Nat.sub(targetDecimals, fracLen)));
-      let magTxt = intDigits # fracSrc # pad;
-      switch (Nat.fromText(magTxt)) {
-        case (null) { #err(#InvalidFormat) };
-        case (?m) {
-          let signed = if (isNeg) Int.neg(Int.fromNat(m)) else Int.fromNat(m);
-          #ok({ value = signed; decimals = targetDecimals })
-        };
-      };
-    } else {
-      switch (roundMode) {
-        case (null) { return #err(#TooManyFractionDigits) };
-        case (?rm) {
-          // Need to round according to the requested `rm` based on first dropped digit
           let keep = slice(fracSrc, 0, targetDecimals);
           let dropped = slice(fracSrc, targetDecimals, fracLen - targetDecimals);
 
-          // Any non-zero in dropped?
           func anyNonZero(t : Text) : Bool {
             for (c in t.chars()) { if (c != '0') return true };
             false
@@ -171,7 +176,6 @@ module Decimal {
             case (#down) { 0 };
             case (#up) { if (anyNonZero(dropped)) 1 else 0 };
             case (#halfUp) {
-              // look at first dropped digit
               let first = dropped.chars().next();
               switch (first) {
                 case (null) { 0 };
