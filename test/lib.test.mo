@@ -1,5 +1,28 @@
 import { test } "mo:test";
+import Result "mo:core/Result";
 import Decimal "../src/";
+
+// Convenience helpers ------------------------------------------------------
+
+func expectDecimal(
+  actual : Result.Result<Decimal.Decimal, Decimal.DecimalError>,
+  expected : Decimal.Decimal
+) {
+  switch (actual) {
+    case (#ok value) { assertDecimalEqual(value, expected) };
+    case (#err _) { assert false };
+  };
+};
+
+func expectError(
+  actual : Result.Result<Decimal.Decimal, Decimal.DecimalError>,
+  expected : Decimal.DecimalError
+) {
+  switch (actual) {
+    case (#ok _) { assert false };
+    case (#err err) { assert err == expected };
+  };
+};
 
 // Helper to compare Decimal records
 func assertDecimalEqual(actual : Decimal.Decimal, expected : Decimal.Decimal) {
@@ -9,8 +32,12 @@ func assertDecimalEqual(actual : Decimal.Decimal, expected : Decimal.Decimal) {
 
 test("Decimal constructors", func () {
   assertDecimalEqual(Decimal.zero(3), { value = 0; decimals = 3 });
-  assertDecimalEqual(Decimal.fromInt(-123, 1), { value = -123; decimals = 1 });
-  assertDecimalEqual(Decimal.fromNat(789, 4), { value = 789; decimals = 4 });
+  assertDecimalEqual(Decimal.fromInt(-123, 1), { value = -1230; decimals = 1 });
+  assertDecimalEqual(Decimal.fromNat(789, 4), { value = 7890000; decimals = 4 });
+  assertDecimalEqual(Decimal.fromNat(1, 2), { value = 100; decimals = 2 });
+
+  assertDecimalEqual(Decimal.fromUnscaledInt(-123, 1), { value = -123; decimals = 1 });
+  assertDecimalEqual(Decimal.fromUnscaledNat(789, 4), { value = 789; decimals = 4 });
 });
 
 test("Decimal toText and format", func () {
@@ -27,91 +54,33 @@ test("Decimal toText and format", func () {
   assert formattedDefault == "12,345.6789";
 });
 
-test("Decimal fromText parsing and rounding", func () {
-  switch (Decimal.fromText("nan", null, null)) {
-    case (#ok value) { assert false };
-    case (#err _) { assert true };
-  };
-  switch (Decimal.fromText("1.00.22", ?2, null)) {
-    case (#ok value) { assert false };
-    case (#err _) { assert true };
-  };
-  switch (Decimal.fromText("1234500000", ?10, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 12345000000000000000; decimals = 10})};
-    case (#err _) { assert false };
-  };
-  switch (Decimal.fromText("123", ?10, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 1230000000000; decimals = 10})};
-    case (#err _) { assert false };
-  };
-  switch (Decimal.fromText("123.456", null, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 123456; decimals = 3 })};
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("123456.789", ?8, ?#halfUp)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 12345678900000; decimals = 8 })};
-    case (#err _) { assert false };
-  };
-  switch (Decimal.fromText("123.45", ?2, ?#down)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 12345; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("12.34567", ?2, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 1234; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("1.239", ?2, ?#down)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 123; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("1.231", ?2, ?#up)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 124; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("-2.301", ?2, ?#up)) {
-    case (#ok value) { assertDecimalEqual(value, { value = -231; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("-2.345", ?2, ?#halfUp)) {
-    case (#ok value) { assertDecimalEqual(value, { value = -235; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("1.2345", ?3, ?#halfUp)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 1235; decimals = 3 }) };
-    case (#err _) { assert false };
-  };
-
-  switch (Decimal.fromText("1.23.4", ?2, ?#down)) {
-    case (#ok _) { assert false };
-    case (#err e) { assert e == #InvalidFormat };
-  };
+test("Decimal fromText success cases", func () {
+  expectDecimal(Decimal.fromText("4469.41", ?18, null), { value = 4469410000000000000000; decimals = 18 });
+  expectDecimal(Decimal.fromText("123", ?6, null), { value = 123000000; decimals = 6 });
+  expectDecimal(Decimal.fromText("123.456", null, null), { value = 123456; decimals = 3 });
+  expectDecimal(Decimal.fromText("1234500000", ?10, null), { value = 12345000000000000000; decimals = 10 });
+  expectDecimal(Decimal.fromText("123456.789", ?8, ?#halfUp), { value = 12345678900000; decimals = 8 });
+  expectDecimal(Decimal.fromText("123.45", ?2, ?#down), { value = 12345; decimals = 2 });
+  expectDecimal(Decimal.fromText("12.34567", ?2, null), { value = 1234; decimals = 2 });
+  expectDecimal(Decimal.fromText("1.239", ?2, ?#down), { value = 123; decimals = 2 });
+  expectDecimal(Decimal.fromText("1.231", ?2, ?#up), { value = 124; decimals = 2 });
+  expectDecimal(Decimal.fromText("-2.301", ?2, ?#up), { value = -231; decimals = 2 });
+  expectDecimal(Decimal.fromText("-2.345", ?2, ?#halfUp), { value = -235; decimals = 2 });
+  expectDecimal(Decimal.fromText("1.2345", ?3, ?#halfUp), { value = 1235; decimals = 3 });
+  expectDecimal(Decimal.fromText("19.875", ?2, ?#halfUp), { value = 1988; decimals = 2 });
 });
 
-test("Decimal fromText infers scale when no round mode", func () {
-  switch (Decimal.fromText("42", null, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 42; decimals = 0 }) };
-    case (#err _) { assert false };
-  };
+test("Decimal fromText inference", func () {
+  expectDecimal(Decimal.fromText("42", null, null), { value = 42; decimals = 0 });
+  expectDecimal(Decimal.fromText("19.8750", null, null), { value = 198750; decimals = 4 });
+  expectDecimal(Decimal.fromText("0", null, null), { value = 0; decimals = 0 });
+});
 
-  switch (Decimal.fromText("19.8750", null, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 198750; decimals = 4 }) };
-    case (#err _) { assert false };
-  };
-  switch (Decimal.fromText("12.34567", ?2, null)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 1234; decimals = 2})};
-    case (#err _) { assert false };
-  };
-  switch (Decimal.fromText("19.875", ?2, ?#halfUp)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 1988; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
+test("Decimal fromText failures", func () {
+  expectError(Decimal.fromText("nan", null, null), #InvalidFormat);
+  expectError(Decimal.fromText("1.00.22", ?2, null), #InvalidFormat);
+  expectError(Decimal.fromText("", null, null), #InvalidFormat);
+  expectError(Decimal.fromText("--12", null, null), #InvalidFormat);
 });
 
 test("Decimal quantize and rounding helpers", func () {
@@ -144,6 +113,24 @@ test("Decimal conversions toInt, toNat, toFloat/fromFloat", func () {
   };
 
   assert Decimal.toFloat(d) == 12.345;
+
+  let ints : [Int] = [-999, -1, 0, 1234, 999999];
+  let scales : [Nat] = [0, 1, 3, 6];
+  for (n in ints.vals()) {
+    for (dec in scales.vals()) {
+      assert Decimal.toInt(Decimal.fromInt(n, dec), #halfUp) == n;
+    };
+  };
+
+  let nats : [Nat] = [0, 1, 42, 999];
+  for (n in nats.vals()) {
+    for (dec in scales.vals()) {
+      switch (Decimal.toNat(Decimal.fromNat(n, dec), #halfUp)) {
+        case (#ok value) { assert value == n };
+        case (#err _) { assert false };
+      };
+    };
+  };
 
   switch (Decimal.fromFloat(12.345, 3, #halfUp)) {
     case (#ok value) { assertDecimalEqual(value, d) };
@@ -207,16 +194,19 @@ test("Decimal arithmetic operations", func () {
     Decimal.multiply(a, b, ?3, #halfUp),
     { value = 699678; decimals = 3 }
   );
+  assertDecimalEqual(
+    Decimal.multiply(a, b, ?8, #halfUp),
+    { value = 69967800000; decimals = 8}
+  );
 
-  switch (Decimal.divide(b, a, ?2, #halfUp)) {
-    case (#ok value) { assertDecimalEqual(value, { value = 459; decimals = 2 }) };
-    case (#err _) { assert false };
-  };
+  expectDecimal(Decimal.divide(b, a, ?2, #halfUp), { value = 459; decimals = 2 });
 
-  switch (Decimal.divide(a, { value = 0; decimals = 0 }, ?2, #down)) {
-    case (#ok _) { assert false };
-    case (#err e) { assert e == #DivideByZero };
-  };
+  let c : Decimal.Decimal = { value = 11524600000000; decimals = 8 };
+  let d : Decimal.Decimal = { value = 100; decimals = 2 };
+  expectDecimal(Decimal.divide(d, c, ?c.decimals, #halfUp), { value = 868; decimals = 8 });
+
+  expectError(Decimal.divide(a, { value = 0; decimals = 0 }, ?2, #down), #DivideByZero);
+  expectDecimal(Decimal.divide(a, b, ?4, #halfUp), { value = 2176; decimals = 4 });
 });
 
 test("Decimal power", func () {
@@ -270,6 +260,7 @@ test("Decimal inverse identities", func () {
     case (#ok recoveredScaled) { assert Decimal.equal(recoveredScaled, c) };
     case (#err _) { assert false };
   };
+
 });
 
 test("Decimal utilities", func () {

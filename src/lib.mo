@@ -201,19 +201,33 @@ module Decimal {
     }
   };
 
-  /// Creates  a `Decimal` from an `Int`, preserving the provided scale.
+  /// Creates a `Decimal` from an `Int` value, with the required `decimals`.
   /// ```motoko
   /// let a = Decimal.fromInt(-1234, 2);
-  /// // a == { value = -1234; decimals = 2 }
+  /// // a == { value = -123400; decimals = 2 }
   /// ```
-  public func fromInt(n : Int, decimals : Nat) : Decimal = { value = n; decimals };
+  public func fromInt(n : Int, decimals : Nat) : Decimal = { value = n * (10 ** decimals); decimals };
 
-  /// Creates a `Decimal` from a `Nat`, preserving the provided scale.
+  /// Creates a `Decimal` from a `Nat` value, with the required `decimals`.
   /// ```motoko
   /// let a = Decimal.fromNat(1299, 2);
-  /// // a == { value = 1299; decimals = 2 }
+  /// // a == { value = 129900; decimals = 2 }
   /// ```
-  public func fromNat(n : Nat, decimals : Nat) : Decimal = { value = Int.fromNat(n); decimals };
+  public func fromNat(n : Nat, decimals : Nat) : Decimal = { value = Int.fromNat(n) * (10 ** decimals); decimals };
+
+  /// Creates a `Decimal` from an unscaled `Int` magnitude (no automatic scaling).
+  /// ```motoko
+  /// let raw = Decimal.fromUnscaledInt(-1234, 2);
+  /// // raw == { value = -1234; decimals = 2 }
+  /// ```
+  public func fromUnscaledInt(n : Int, decimals : Nat) : Decimal = { value = n; decimals };
+
+  /// Creates a `Decimal` from an unscaled `Nat` magnitude (no automatic scaling).
+  /// ```motoko
+  /// let raw = Decimal.fromUnscaledNat(1299, 2);
+  /// // raw == { value = 1299; decimals = 2 }
+  /// ```
+  public func fromUnscaledNat(n : Nat, decimals : Nat) : Decimal = { value = Int.fromNat(n); decimals };
 
 
 

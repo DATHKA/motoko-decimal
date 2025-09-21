@@ -1,10 +1,17 @@
 # decimal changelog
+## 3.0.0
+
+* Disambiguated behaviour of fromText() and rounding mode when `?decimals` is null
+* Aligned fromInt and fromNat with expected behaviour preserving the identity `Int v == Decimal.toInt(Decimal.fromInt(v, d), #halfUp)` for all values of d.
+* Added fromIntUnscaled() and fromNatUnscaled() to preserve the previous behaviour of fromInt() and fromNat().
+* Improved documentation
 
 ## 2.0.0
 
 * Added:
 * Optional `roundMode` parameter for `Decimal.fromText`, inferring decimal precision from the input when omitted.
 * `Decimal.equal` helper to compare values after normalising scales and `Decimal.equalExact` for structural equality.
+* `Decimal.fromUnscaledInt` and `Decimal.fromUnscaledNat` constructors for working with raw fixed-point magnitudes.
 * Inline Motoko snippets augmenting every public function’s documentation.
 * Additional unit tests covering `Decimal.equal`, inverse arithmetic identities, and scale inference behaviour.
 
