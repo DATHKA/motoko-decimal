@@ -1,7 +1,17 @@
 # decimal changelog
+
+# 3.0.1
+* Fixed bug in `fromText()` - "-" now parses to `#InvalidFormat` rather than `0`.
+* Consistent use of pow10() for exponents.
+* Added `toDebugText()` to return the contents of a Decimal object as a string.
+* Added `toJson()` to return a JSON representation of a Decimal object.
+* Added `toJsonBigDecimal()` to return a JSON representation of a Decimal object with the keys aligning with JAVA's BigDecimal convention.
+* Optimised `normalize` for performance.
+* Documentation tweaks.
+
 ## 3.0.0
 
-* Disambiguated behaviour of fromText() and rounding mode when `?decimals` is null
+* Disambiguated behaviour of fromText() and rounding mode when `?decimals` is null.
 * Aligned fromInt and fromNat with expected behaviour preserving the identity `Int v == Decimal.toInt(Decimal.fromInt(v, d), #halfUp)` for all values of d.
 * Added fromIntUnscaled() and fromNatUnscaled() to preserve the previous behaviour of fromInt() and fromNat().
 * Improved documentation

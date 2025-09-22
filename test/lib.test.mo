@@ -54,6 +54,20 @@ test("Decimal toText and format", func () {
   assert formattedDefault == "12,345.6789";
 });
 
+test("Decimal serialisation helpers", func () {
+  let positive = Decimal.fromInt(1234, 2); // 12.34
+  let negative = Decimal.fromInt(-9876, 3); // -9.876
+
+  assert Decimal.toDebugText(positive) == "{123400, 2}";
+  assert Decimal.toDebugText(negative) == "{-9876000, 3}";
+
+  assert Decimal.toJson(positive) == "{\"value\": \"123400\", \"decimals\": 2}";
+  assert Decimal.toJson(negative) == "{\"value\": \"-9876000\", \"decimals\": 3}";
+
+  assert Decimal.toJsonBigDecimal(positive) == "{\"unscaledValue\": \"123400\", \"scale\": 2}";
+  assert Decimal.toJsonBigDecimal(negative) == "{\"unscaledValue\": \"-9876000\", \"scale\": 3}";
+});
+
 test("Decimal fromText success cases", func () {
   expectDecimal(Decimal.fromText("4469.41", ?18, null), { value = 4469410000000000000000; decimals = 18 });
   expectDecimal(Decimal.fromText("123", ?6, null), { value = 123000000; decimals = 6 });
@@ -80,6 +94,7 @@ test("Decimal fromText failures", func () {
   expectError(Decimal.fromText("nan", null, null), #InvalidFormat);
   expectError(Decimal.fromText("1.00.22", ?2, null), #InvalidFormat);
   expectError(Decimal.fromText("", null, null), #InvalidFormat);
+  expectError(Decimal.fromText("-", null, null), #InvalidFormat);
   expectError(Decimal.fromText("--12", null, null), #InvalidFormat);
 });
 

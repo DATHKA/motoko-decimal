@@ -11,14 +11,14 @@ import Result "mo:core/Result";
 // Decimal.mo — Fixed-point decimal arithmetic for Motoko
 // ------------------------------------------------------------
 // Highlights
-// - Explicit Decimal type: { value : Int; decimals : Nat }
-// - Clear rounding modes: DecimalRoundMode = { #down; #up; #halfUp }
-//   * #down  => toward zero
-//   * #up    => away from zero (if any fraction)
-//   * #halfUp => to nearest, ties away from zero
-// - Result-based errors for operations that can fail
-// - Safer parsing/formatting (negatives supported, optional rounding)
-// - Utility functions: abs, neg, signum, isZero, cmp, min, max, clamp,
+// * Explicit Decimal type: { value : Int; decimals : Nat }
+// * Clear rounding modes: DecimalRoundMode = { #down; #up; #halfUp }
+//   - #down  => toward zero
+//   - #up    => away from zero (if any fraction)
+//   - #halfUp => to nearest, ties away from zero
+// * Result-based errors for operations that can fail
+// * Safer parsing/formatting (negatives supported, optional rounding)
+// * Utility functions: abs, neg, signum, isZero, compare, min, max, clamp,
 //   quantize, normalize, floorTo / ceilTo / truncTo, power (integer),
 //   toInt, toNat, toFloat, fromFloat, format with separators
 // ------------------------------------------------------------
@@ -38,19 +38,19 @@ module Decimal {
   };
 
   /// Supported rounding strategies used throughout the module.
-  /// - `#down`: round toward zero (truncate any excess fractional digits).
-  /// - `#up`: round away from zero whenever dropped digits are non-zero.
-  /// - `#halfUp`: round to the nearest value; ties (>= 0.5) are rounded away from zero.
+  /// * `#down`: round toward zero (truncate any excess fractional digits).
+  /// * `#up`: round away from zero whenever dropped digits are non-zero.
+  /// * `#halfUp`: round to the nearest value; ties (>= 0.5) are rounded away from zero.
   public type DecimalRoundMode = { #down; #up; #halfUp };
 
   /// Errors that can be produced by parsing and arithmetic.
   /// Variants:
-  /// - `#DivideByZero`: attempted to divide by a zero-valued decimal.
-  /// - `#InvalidFormat`: input text or configuration cannot be parsed into a decimal.
-  /// - `#TooManyFractionDigits`: requested scale requires more fractional digits than supplied.
-  /// - `#NegativeValue`: conversion to `Nat` would yield a negative number.
-  /// - `#InvalidFloat`: floating-point source is NaN or Infinity (not representable).
-  /// - `#ZeroToNegativePower`: attempted to raise zero to a negative exponent.
+  /// * `#DivideByZero`: attempted to divide by a zero-valued decimal.
+  /// * `#InvalidFormat`: input text or configuration cannot be parsed into a decimal.
+  /// * `#TooManyFractionDigits`: requested scale requires more fractional digits than supplied.
+  /// * `#NegativeValue`: conversion to `Nat` would yield a negative number.
+  /// * `#InvalidFloat`: floating-point source is NaN or Infinity (not representable).
+  /// * `#ZeroToNegativePower`: attempted to raise zero to a negative exponent.
   public type DecimalError = {
     /// Division attempted with a zero denominator.
     #DivideByZero;
@@ -70,6 +70,7 @@ module Decimal {
   let defaultExtraPrecision : Nat = 12;
 
   /// Constant unity = 1
+  /// `public let unity : Decimal = { value = 1; decimals = 0 };`
   public let unity : Decimal = { value = 1; decimals = 0 };
 
   /// Creates a zero `Decimal` with the provided scale.
@@ -126,6 +127,7 @@ module Decimal {
 
     let isNeg = Text.startsWith(txt, #text "-");
     let body = if (isNeg) slice(txt, 1, txt.size() - 1) else txt;
+    if (body.size() == 0) return #err(#InvalidFormat);
 
     let parts = Iter.toArray(Text.split(body, #char '.'));
     if (parts.size() > 2) return #err(#InvalidFormat);
@@ -206,14 +208,14 @@ module Decimal {
   /// let a = Decimal.fromInt(-1234, 2);
   /// // a == { value = -123400; decimals = 2 }
   /// ```
-  public func fromInt(n : Int, decimals : Nat) : Decimal = { value = n * (10 ** decimals); decimals };
+  public func fromInt(n : Int, decimals : Nat) : Decimal = { value = n * pow10(decimals); decimals };
 
   /// Creates a `Decimal` from a `Nat` value, with the required `decimals`.
   /// ```motoko
   /// let a = Decimal.fromNat(1299, 2);
   /// // a == { value = 129900; decimals = 2 }
   /// ```
-  public func fromNat(n : Nat, decimals : Nat) : Decimal = { value = Int.fromNat(n) * (10 ** decimals); decimals };
+  public func fromNat(n : Nat, decimals : Nat) : Decimal = { value = Int.fromNat(n) * pow10(decimals); decimals };
 
   /// Creates a `Decimal` from an unscaled `Int` magnitude (no automatic scaling).
   /// ```motoko
@@ -279,7 +281,33 @@ module Decimal {
     };
   };
 
-  
+  /// Produces a compact debug-friendly string representation.
+  /// ```motoko
+  /// let debug = Decimal.toDebugText(Decimal.fromInt(1234, 2));
+  /// // debug == "{123400, 2}"
+  /// ```
+  public func toDebugText(d : Decimal) : Text {
+    "{" # Int.toText(d.value) # ", " # Nat.toText(d.decimals) # "}";
+  };
+
+  /// Serialises the decimal as a JSON object using `value` / `decimals` fields.
+  /// ```motoko
+  /// let json = Decimal.toJson(Decimal.fromInt(-1234, 2));
+  /// // json == "{\"value\": \"-123400\", \"decimals\": 2}"
+  /// ```
+  public func toJson(d : Decimal) : Text {
+    "{\"value\": \"" # Int.toText(d.value) # "\", \"decimals\": " # Nat.toText(d.decimals) # "}";
+  };
+
+  /// Serialises using the BigDecimal-style field names `unscaledValue` and `scale`.
+  /// ```motoko
+  /// let json = Decimal.toJsonBigDecimal(Decimal.fromInt(1234, 2));
+  /// // json == "{\"unscaledValue\": \"123400\", \"scale\": 2}"
+  /// ```
+  public func toJsonBigDecimal(d : Decimal) : Text {
+    "{\"unscaledValue\": \"" # Int.toText(d.value) # "\", \"scale\": " # Nat.toText(d.decimals) # "}";
+  };
+
 
   // ------------ Scaling & Rounding ------------
   /// Rescales a `Decimal` to `targetDecimals`, applying the supplied rounding mode.
@@ -629,19 +657,36 @@ module Decimal {
   /// // normalised == { value = 1234; decimals = 2 }
   /// ```
   public func normalize(d : Decimal) : Decimal {
-    if (d.decimals == 0 or d.value == 0) return { value = d.value; decimals = d.decimals };
+    if (d.decimals == 0 or d.value == 0) return d;
 
     var mag : Nat = Int.abs(d.value);
     var dec : Nat = d.decimals;
 
-    while (dec > 0 and (mag % 10 == 0)) {
-      mag /= 10;
-      dec -= 1;
+    // strip groups of 3 decimal zeros first
+    let thousand : Nat = 1_000;
+    while (dec >= 3 and mag % thousand == 0) {
+      mag /= thousand;
+      dec := Nat.sub(dec, 3);   // safe, no underflow
+    };
+
+    // then groups of 2
+    let hundred : Nat = 100;
+    while (dec >= 2 and mag % hundred == 0) {
+      mag /= hundred;
+      dec := Nat.sub(dec, 2);
+    };
+
+    // finally single zeros
+    let ten : Nat = 10;
+    while (dec >= 1 and mag % ten == 0) {
+      mag /= ten;
+      dec := Nat.sub(dec, 1);
     };
 
     let signed = if (d.value < 0) -Int.fromNat(mag) else Int.fromNat(mag);
     { value = signed; decimals = dec }
   };
+
 
 // ------------ Helpers ------------
   /// Computes `10^k` for non-negative `k`.

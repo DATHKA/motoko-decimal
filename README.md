@@ -1,8 +1,8 @@
 # decimal
 
-Motoko `Decimal` provides a fixed-point decimal type and maths operators built on big integer primitives so financial or currency calculations are deterministic, avoiding floating-point rounding errors.
+Motoko `Decimal` provides a general-purpose fixed-point decimal type and arithmetic operators built on big integer primitives so financial or currency calculations are exact and predictable, avoiding floating-point rounding errors.
 
-It is designed for arithmetic across different fiat and crypto currency values with fixed decimals (e8s, sat, wei, USD).
+It was originally designed for arithmetic across different fiat and crypto currency values with fixed decimals (e8s, sat, wei, USD).
 
 ## Install
 ```
