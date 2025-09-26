@@ -286,6 +286,12 @@ test("Decimal utilities", func () {
   assertDecimalEqual(Decimal.neg(pos), { value = -750; decimals = 1 });
   assert Decimal.isZero({ value = 0; decimals = 5 });
   assert Decimal.isZero({ value = 10; decimals = 1 }) == false;
+  assert Decimal.isPositive(pos);
+  assert Decimal.isPositive(neg) == false;
+  assert Decimal.isPositive({ value = 0; decimals = 3 }) == false;
+  assert Decimal.isNegative(neg);
+  assert Decimal.isNegative(pos) == false;
+  assert Decimal.isNegative({ value = 0; decimals = 0 }) == false;
   assert Decimal.signum(neg) == -1;
   assert Decimal.signum(pos) == 1;
   assert Decimal.signum({ value = 0; decimals = 0 }) == 0;

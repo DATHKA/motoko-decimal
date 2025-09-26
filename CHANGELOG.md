@@ -1,5 +1,8 @@
 # decimal changelog
 
+# 3.0.2
+* Added `isPositive()` and `isNegative()` tests.
+
 # 3.0.1
 * Fixed bug in `fromText()` - "-" now parses to `#InvalidFormat` rather than `0`.
 * Consistent use of pow10() for exponents.

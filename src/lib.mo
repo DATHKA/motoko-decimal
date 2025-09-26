@@ -584,6 +584,20 @@ module Decimal {
   /// ```
   public func isZero(d : Decimal) : Bool = (d.value == 0);
 
+  /// Checks whether the decimal is strictly greater than zero.
+  /// ```motoko
+  /// let hasSurplus = Decimal.isPositive(Decimal.fromInt(5, 1));
+  /// // hasSurplus == true
+  /// ```
+  public func isPositive(d : Decimal) : Bool = (d.value > 0);
+
+  /// Checks whether the decimal is strictly less than zero.
+  /// ```motoko
+  /// let inDeficit = Decimal.isNegative(Decimal.fromInt(-5, 1));
+  /// // inDeficit == true
+  /// ```
+  public func isNegative(d : Decimal) : Bool = (d.value < 0);
+
   /// Returns the sign of the `Decimal` (`-1`, `0`, `1`).
   /// ```motoko
   /// let sign = Decimal.signum(Decimal.fromInt(-500, 2));
