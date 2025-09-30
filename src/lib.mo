@@ -396,6 +396,13 @@ module Decimal {
   /// ```
   public func toInt(d : Decimal, roundMode : DecimalRoundMode) : Int = quantize(d, 0, roundMode).value;
 
+  /// Returns the unscaled integer magnitude ("base units") encoded by `Decimal`.
+  /// ```motoko
+  /// let raw = Decimal.toBaseUnits(Decimal.fromNat(12345, 2));
+  /// // raw == 1234500
+  /// ```
+  public func toBaseUnits(d : Decimal) : Int = d.value;
+
   /// Attempts to convert a `Decimal` to `Nat`, failing when the rounded integer would be negative.
   /// ```motoko
   /// let whole = Decimal.toNat(Decimal.fromNat(4599, 2), #halfUp);

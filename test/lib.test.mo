@@ -116,6 +116,7 @@ test("Decimal conversions toInt, toNat, toFloat/fromFloat", func () {
   let d : Decimal.Decimal = { value = 12345; decimals = 3 }; // 12.345
   assert Decimal.toInt(d, #down) == 12;
   assert Decimal.toInt(d, #up) == 13;
+  assert Decimal.toBaseUnits(d) == 12345;
 
   switch (Decimal.toNat({ value = 500; decimals = 2 }, #halfUp)) {
     case (#ok value) { assert value == 5 };
@@ -151,6 +152,9 @@ test("Decimal conversions toInt, toNat, toFloat/fromFloat", func () {
     case (#ok value) { assertDecimalEqual(value, d) };
     case (#err _) { assert false };
   };
+
+  let neg : Decimal.Decimal = Decimal.fromInt(-123, 2);
+  assert Decimal.toBaseUnits(neg) == -12300;
 
   switch (Decimal.fromFloat(-1.234, 2, #up)) {
     case (#ok value) { assertDecimalEqual(value, { value = -124; decimals = 2 }) };
