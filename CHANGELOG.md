@@ -1,5 +1,8 @@
 # decimal changelog
 
+# 3.0.3
+* Added `toBaseUnits` to return the value of the decimal in base units as an `Int`.
+
 # 3.0.2
 * Added `isPositive()` and `isNegative()` tests.
 

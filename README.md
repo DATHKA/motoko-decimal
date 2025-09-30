@@ -35,10 +35,6 @@ Debug.print("Total due: " # Decimal.toText(orderTotal)); // prints: Total due: 2
 
 Passing `null` for the optional `decimals` parameters lets the library pick a sensible scale automatically depending on the operation and operands.
 
-### Base units
-
-Use `Decimal.toBaseUnits` when you need the raw integer magnitude without decimal places, for example when passing values to systems that expect base units.
-
 ```motoko
 let payment = Decimal.fromNat(425, 2);        // 4.25
 let baseUnits = Decimal.toBaseUnits(payment); // 42500
